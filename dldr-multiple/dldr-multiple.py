@@ -5,6 +5,7 @@ Download programs from dr.dk/tv by supplying multiple links.
 
 Usage:
   dldr-multiple.py --input=FILE [--slug-name] [--output=DIR]
+  dldr-multiple.py <url>... [--slug-name] [--output=DIR]
   dldr-multiple.py (-h | --help)
   dldr-multiple.py --version
 
@@ -21,6 +22,8 @@ import os
 import subprocess
 import re
 
+DR_URL_PATTERN = r"https?:\/\/(www\.)?dr.dk\/tv\/"
+
 def create_command(url, slug_name = False, output_dir = None):
   cmd = "dldr"
   cmd = "{0} --slug-name".format(cmd) if slug_name else cmd
@@ -34,9 +37,15 @@ def start_download_for_urls(urls, slug_name = False, output_dir = None):
 
 def valid_urls(file_path):
   lines = open(file_path).read().splitlines()
-  regex = re.compile(r"https?:\/\/(www\.)?dr.dk\/tv\/")
+  regex = re.compile(DR_URL_PATTERN)
   return [ l for l in lines if regex.search(l) ]
-  
+
+def validate_urls(urls):
+  for url in urls:
+    if not re.search(DR_URL_PATTERN, url):
+      return False
+  return True
+
 def run():
   args = docopt(__doc__, version="dldr-multiple 1.0.0")
   s = Schema({
@@ -45,10 +54,14 @@ def run():
     '--slug-name': bool,
     '--input': Or(os.path.exists, None, error='Input file does not exist.'),
     '--output': Or(os.path.exists, None, error='Output directory does not exist.'),
+    '<url>': validate_urls
   })  
-  args = s.validate(args)  
-  urls = valid_urls(args['--input'])
-  start_download_for_urls(urls, args['--slug-name'], args['--output'])
+  args = s.validate(args)
+  if args['--input']:
+    urls = valid_urls(args['--input'])
+    start_download_for_urls(urls, args['--slug-name'], args['--output'])
+  elif args['<url>']:
+    start_download_for_urls(args['<url>'], args['--slug-name'], args['--output'])
 
 if __name__ == "__main__":
   run()
